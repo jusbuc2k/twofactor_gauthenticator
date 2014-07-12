@@ -25,8 +25,7 @@ if (window.rcmail) {
 		// populate all fields
 		function setup2FAfields() {
 			if($('#2FA_secret').get(0).value) return;
-			
-			
+						
 			$('#twofactor_gauthenticator-form :input').each(function(){
 				if($(this).get(0).type == 'password') $(this).get(0).type = 'text';
 			});
@@ -48,9 +47,7 @@ if (window.rcmail) {
 			// add qr-code before msg_infor
 			url_qr_code_values = encodeURIComponent('otpauth://totp/' +$('#prefs-title').html().split(/ - /)[1]+ '?secret=' +$('#2FA_secret').get(0).value +'&issuer=RoundCube2FA');
 			url_qr_code = 'https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl='+url_qr_code_values;
-			$('table tr:last').before('<tr><td>' +rcmail.gettext('qr_code', 'twofactor_gauthenticator')+ '</td><td><input type="button" class="button mainaction" id="2FA_change_qr_code" value="' 
-					+rcmail.gettext('hide_qr_code', 'twofactor_gauthenticator')+ '"><div id="2FA_qr_code" style="display: visible"><img src="' +url_qr_code+ '" /></div></td></tr>');
-			
+			$('2FA_qr_code img').attr('src',url_qr_code);			
 			$('#2FA_change_qr_code').click(click2FA_change_qr_code);
 		}
 	  
@@ -128,7 +125,7 @@ if (window.rcmail) {
     rcmail.add_element(tabtwofactorgauthenticator, 'tabs');
     rcmail.register_command('plugin.twofactor_gauthenticator', function() { rcmail.goto_url('plugin.twofactor_gauthenticator') }, true);
     rcmail.register_command('plugin.twofactor_gauthenticator-save', function() {
-    	if(!$('#2FA_secret').get(0).value) {
+    	if(!$('#2FA_secret').get(0).value && $('#2FA_activate').prop('checked')) {
     		$('#2FA_secret').get(0).value = createSecret();
     	}
         rcmail.gui_objects.twofactor_gauthenticatorform.submit();
