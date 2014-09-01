@@ -57,7 +57,12 @@ class twofactor_gauthenticator extends rcube_plugin
 			}
 			return;
 		}
-    	
+		
+		if ($this->__checkRemember()){
+			$_SESSION['twofactor_gauthenticator_2FA_login'] = time;
+			return;
+		}
+		    	
     	$rcmail->output->set_pagetitle($this->gettext('twofactor_gauthenticator'));
 
     	$this->add_texts('localization', true);
@@ -75,6 +80,8 @@ class twofactor_gauthenticator extends rcube_plugin
 		if($config_2FA['activate'])
 		{
 			$code = get_input_value('_code_2FA', RCUBE_INPUT_POST);
+			$remember = get_input_value('_remember_2FA', RCUBE_INPUT_POST);
+			
 			if($code)
 			{
 				if(self::__checkCode($code) || self::__isRecoveryCode($code))
@@ -83,6 +90,11 @@ class twofactor_gauthenticator extends rcube_plugin
 					{
 						self::__consumeRecoveryCode($code);
 					}
+					
+					if ($remember == "yes"){
+						$this->__remember();
+					}
+					
 					$this->__goingRoundcubeTask('mail');
 				}
 				else
@@ -210,7 +222,7 @@ class twofactor_gauthenticator extends rcube_plugin
         {
         	$html_secret .= '<input type="hidden" class="button mainaction" id="2FA_secret_active" value="1">';			
         }						
-		$html_secret .= '<div id="2FA_qr_code"><img src="" /></div>';
+		$html_secret .= '<div id="2FA_qr_code"><img src="" style="display:none"/></div>';
 		$html_secret .= html::p(null, $this->gettext('msg_infor'));
 								
         $table->add(null, $html_secret);
@@ -218,12 +230,12 @@ class twofactor_gauthenticator extends rcube_plugin
         // recovery codes
        	$table->add('title', $this->gettext('recovery_codes'));
         	
-       	$html_recovery_codes = '<ul id="2FA_recovery_codes_list">';
+       	$html_recovery_codes = '<ul id="2FA_recovery_codes_list" style="'.($active ? 'display:none' : '').'">';
        	$i=0;
        	for($i = 0; $i < $this->_number_recovery_codes; $i++)
        	{
        		$value = (isset($data['recovery_codes'][$i]) && $active) ? $data['recovery_codes'][$i] : '';
-       		$html_recovery_codes .= '<li><span id="2FA_recovery_codes_'.$i.'"></span><input type="hidden" name="2FA_recovery_codes[]" value="'.$value.'"/></li>';
+       		$html_recovery_codes .= '<li><span id="2FA_recovery_codes_'.$i.'">'.$value.'</span><input type="hidden" name="2FA_recovery_codes[]" value="'.$value.'"/></li>';
        	}
        	$html_recovery_codes .= '</ul><input type="button" class="button mainaction" id="2FA_show_recovery_codes" value="'.$this->gettext('show_recovery_codes').'">';
        	$table->add(null, $html_recovery_codes);
@@ -281,7 +293,7 @@ class twofactor_gauthenticator extends rcube_plugin
     	if(self::__checkCode($code, $secret))
     	{
     		echo '"message": "'.$this->gettext('code_ok').'",';
-			echo '"result": "true';
+			echo '"result": true';
     	}
     	else
     	{
@@ -368,4 +380,50 @@ class twofactor_gauthenticator extends rcube_plugin
 		$ga = new PHPGangsta_GoogleAuthenticator();
 		return $ga->verifyCode( ($secret ? $secret : self::__getSecret()), $code, 2);    // 2 = 2*30sec clock tolerance
 	} 
+	
+	private function __remember()
+	{
+		$rcmail = rcmail::get_instance();
+		
+		// user id
+		$user_id = $rcmail->user->ID;
+		// user name
+		$user_name = $rcmail->user->data['username'];
+		
+		$plain_token = $user_id . "|" . $user_name;
+		
+		$crypt_token = $rcmail->encrypt($plain_token);
+		
+		$rcmail->setcookie("2FA_remember", $crypt_token, time() + (60 * 60 * 24 * 30));
+	}
+	
+	private function __checkRemember()
+	{
+		$rcmail = rcmail::get_instance();
+		$user_id = $rcmail->user->ID;
+		$user_name = $rcmail->user->data['username'];		
+		$crypt_token = $_COOKIE["2FA_remember"];
+				
+		if (empty($crypt_token)){
+			return false;
+		}		
+		
+		$plain_token = $rcmail->decrypt($crypt_token);
+		
+		if (empty($plain_token)){
+			return false;
+		}
+		
+		$token_parts = explode('|', $plain_token);
+		
+		if (empty($token_parts) || !is_array($token_parts) || count($token_parts) !== 2){
+			return;
+		}
+				
+		if ($token_parts[0] == $user_id && $token_parts[1] == $user_name) {
+			return true;
+		}
+		
+		return false;
+	}
 }

@@ -95,6 +95,7 @@
                 url_qr_code_values = encodeURIComponent('otpauth://totp/' + rcmail.user_name + '?secret=' + secret32 + '&issuer=' + rcmail.product_name);
                 url_qr_code = 'https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=' + url_qr_code_values;
                 $('#2FA_qr_code img').attr('src', url_qr_code);
+				$('#2FA_qr_code img').show();
             }
 
             function clear2FAFields() {
